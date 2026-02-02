@@ -1,0 +1,44 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ============================================
+    // USERS COLLECTION RULES
+    // ============================================
+    match /users/{userId} {
+      
+      // ✅ CHO PHÉP ĐỌC (READ)
+      // User chỉ có thể đọc document của chính mình
+      allow read: if request.auth != null && request.auth.uid == userId;
+      
+      // ✅ CHO PHÉP TẠO (CREATE)
+      // User chỉ có thể tạo document với ID = uid của họ
+      // Và phải có các fields bắt buộc
+      allow create: if request.auth != null 
+                    && request.auth.uid == userId
+                    && request.resource.data.keys().hasAll(['email', 'name', 'role'])
+                    && request.resource.data.email is string
+                    && request.resource.data.name is string
+                    && request.resource.data.role in ['admin', 'teacher', 'student', 'parent'];
+      
+      // ✅ CHO PHÉP CẬP NHẬT (UPDATE)
+      // User có thể update document của mình
+      // NHƯNG không được thay đổi role (chỉ admin mới được)
+      allow update: if request.auth != null 
+                    && request.auth.uid == userId
+                    && request.resource.data.role == resource.data.role;
+      
+      // ❌ KHÔNG CHO PHÉP XÓA (DELETE)
+      // Chỉ admin mới được xóa users
+      allow delete: if false;
+    }
+    
+    // ============================================
+    // DEFAULT: DENY ALL
+    // ============================================
+    // Tất cả các collection khác đều bị chặn
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
